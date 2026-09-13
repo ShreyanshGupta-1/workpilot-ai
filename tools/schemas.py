@@ -56,5 +56,22 @@ tools = [
                 "required": ["query"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_document",
+            "description": "Search Shreyansh's resume (education, skills, projects, experience) and information about the WorkPilot AI project (features, tech stack, architecture). Use this tool when the user asks questions about Shreyansh's background or about WorkPilot AI specifically.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query or question to look up in the document"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
     }
 ]

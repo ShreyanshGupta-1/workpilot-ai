@@ -1,0 +1,8 @@
+Shreyansh is a BTech Computer Science and Engineering student at Bennett University, specializing in Artificial Intelligence and Machine Learning.
+WorkPilot AI is an agentic AI assistant built in Python, using the Groq API for LLM reasoning and tool-calling.
+WorkPilot AI can tell the current date and time, perform basic math, count words in text, and search the web using the Tavily API.
+WorkPilot AI stores conversation history in a SQLite database, with each conversation tracked separately using a conversation_id.
+WorkPilot AI is exposed as a REST API using FastAPI, with a /chat endpoint that handles user messages.
+WorkPilot AI's tool-calling logic runs in a loop, allowing the model to call a tool multiple times in a row if needed before giving a final answer. This design means that if a tool returns poor or irrelevant results, the model can automatically retry with a different search query, up to five attempts, before giving up and informing the user honestly rather than inventing an answer.
+
+The project also uses Retrieval-Augmented Generation, or RAG, to answer questions about itself. This works by breaking a knowledge document into chunks, converting each chunk into a numerical embedding, and comparing a user's question against those embeddings using cosine similarity to find the most relevant piece of information before generating a final answer.

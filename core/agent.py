@@ -7,6 +7,7 @@ import json
 from tools.functions import get_current_time, add_numbers, word_count,web_search
 from tools.schemas import tools
 import sqlite3
+from tools.rag import search_document
 
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -16,6 +17,7 @@ cursor = conn.cursor()
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id TEXT,
         role TEXT,
         content TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -23,15 +25,18 @@ cursor.execute("""
 """)
 conn.commit()
 
-def save_message(role, content):
+def save_message(conversation_id, role, content):
     cursor.execute(
-        "INSERT INTO messages (role, content) VALUES (?, ?)",
-        (role, str(content))
+        "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)",
+        (conversation_id, role, str(content))
     )
     conn.commit()
 
-def load_message():
-    cursor.execute("select role, content from messages order by id")
+def load_message(conversation_id):
+    cursor.execute(
+        "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id",
+        (conversation_id,)
+    )
     rows = cursor.fetchall()
     result = []
     for row in rows:
@@ -41,21 +46,18 @@ def load_message():
             continue
         result.append({"role": role, "content": content})
     return result
-res=load_message()
-# print(res)
-cursor.execute("SELECT * FROM messages")
-print(cursor.fetchall())
 
 available_tool = {
     "get_current_time": get_current_time,
     "add_numbers": add_numbers,
     "word_count": word_count,
-    "web_search": web_search
+    "web_search": web_search,
+    "search_document": search_document
 }
 
-def get_reply(text, messages):
+def get_reply(conversation_id, text, messages):
     messages.append({"role": "user", "content": text})
-    save_message("user", text)
+    save_message(conversation_id, "user", text)
     
     max_rounds = 5
     rounds = 0
@@ -65,7 +67,7 @@ def get_reply(text, messages):
         if rounds > max_rounds:
             fallback = "I wasn't able to complete this after several attempts. Please try rephrasing your question."
             messages.append({"role": "assistant", "content": fallback})
-            save_message("assistant", fallback)
+            save_message(conversation_id, "assistant", fallback)
             return fallback
         
         response = client.chat.completions.create(
@@ -80,12 +82,13 @@ def get_reply(text, messages):
             tool_name = call.function.name
             tool_id = call.id
             tool_args = json.loads(call.function.arguments)
-
+            # print(f"DEBUG: tool called = {tool_name}")
             try:
                 result = available_tool[tool_name](**tool_args)
+                # print(f"DEBUG: tool result = {result}")
             except Exception as e:
                 result = f"Error: the tool '{tool_name}' does not exist. Do not attempt to call it again — inform the user this action is not available."
-
+            
             messages.append({
                 "role": "assistant",
                 "content": None,
@@ -95,10 +98,10 @@ def get_reply(text, messages):
                     "function": {"name": call.function.name, "arguments": call.function.arguments}
                 }]
             })
-            save_message("assistant", f"[requested tool: {tool_name}]")
+            save_message(conversation_id, "assistant", f"[requested tool: {tool_name}]")
             
             messages.append({"role": "tool", "tool_call_id": tool_id, "content": str(result)})
-            save_message("tool", str(result))
+            save_message(conversation_id, "tool", str(result))
             
             # loop continues automatically — goes back to top, calls API again
             continue
@@ -106,5 +109,5 @@ def get_reply(text, messages):
         else:
             final_text = response.choices[0].message.content
             messages.append({"role": "assistant", "content": final_text})
-            save_message("assistant", final_text)
+            save_message(conversation_id, "assistant", final_text)
             return final_text
