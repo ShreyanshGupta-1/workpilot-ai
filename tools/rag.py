@@ -36,7 +36,10 @@ def load_and_chunk_txt(filepath):
     file_chunks = [c.strip() for c in file_chunks if c.strip() != ""]
     return file_chunks
 
-resume_chunks = load_and_chunk_pdf("knowledge/shreyansh_resume.pdf")
+try:
+    resume_chunks = load_and_chunk_pdf("knowledge/shreyansh_resume.pdf")
+except FileNotFoundError:
+    resume_chunks = []
 about_chunks = load_and_chunk_txt("knowledge/about.txt")
 
 all_chunks = resume_chunks + about_chunks
