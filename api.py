@@ -44,3 +44,9 @@ def create_chat(chat: chat):
 def list_sources():
     unique_sources = list(set(all_sources))
     return {"available_sources": unique_sources}
+
+
+@app.get("/history/{conversation_id}")
+def get_history(conversation_id: str):
+    history = load_message(conversation_id)
+    return {"conversation_id": conversation_id, "messages": history}

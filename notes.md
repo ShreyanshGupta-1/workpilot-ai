@@ -475,3 +475,49 @@ Extend `search_document` to search across multiple knowledge sources (resume + a
 `search_document` now searches across multiple knowledge sources with accurate origin tracking, tested and confirmed working for both PDF and plain-text sources combined in a single tool.
 
 
+
+
+## Day 23 — Build Log
+
+Goal
+Deploy WorkPilot AI to a public cloud host (Render), so it's accessible without running locally.
+
+Part A — Chose Render over Vercel
+
+Reasoned through the architectural mismatch: Vercel's serverless model spins up fresh execution environments per request — incompatible with an app that loads a large ML model once at startup and keeps a persistent SQLite connection open
+Render's traditional "Web Service" model runs as a continuous process, matching how the app is actually built and already tested locally
+
+Part B — Prepared for deployment
+
+Regenerated requirements.txt, learned to check it against what's actually imported vs. what pip freeze captures from the whole environment
+Understood --host 0.0.0.0 --port $PORT — cloud platforms need a dynamic, externally-reachable port, unlike local 127.0.0.1:8000
+Learned free-tier constraints upfront: ephemeral storage (SQLite won't reliably persist across restarts) — accepted as a known limitation, not solved today
+
+Part C — Real debugging, multiple rounds
+
+Bug 1 — requirements.txt missing from GitHub
+
+First deploy failed in 14.5s: Could not open requirements file
+Root cause: file was generated locally but never actually pushed — traced back to likely getting lost during Day 21's merge-conflict confusion
+Key lesson: generating a file locally ≠ it being on GitHub; always verify on GitHub itself, not just trust local terminal output. This connects to why deploying is valuable beyond "getting it live" — it's an external, honest check against your actual repo state, independent of what your local machine believes happened
+
+Fixing Git push — authentication
+
+Hit GitHub's deprecated password-auth error, resolved by generating a Personal Access Token and using it in place of a password
+
+Bug 2 — Out of memory (CUDA bloat)
+
+Second deploy succeeded at build, failed at startup: Out of memory (used over 512Mi)
+Diagnosed: default torch install pulls full GPU/CUDA support (nvidia-cublas, nvidia-cudnn, etc.) — several GB of unnecessary weight on a GPU-less free tier
+Fixed with --extra-index-url https://download.pytorch.org/whl/cpu in requirements.txt, forcing the CPU-only build
+Confirmed via logs: CUDA packages completely gone, torch-2.10.0+cpu installed instead, build time dropped from 8+ minutes to seconds
+
+Remaining limitation — genuine, not fixable today
+
+Even with CPU-only torch, loading sentence-transformers + transformers + actual model weights at runtime still exceeds 512MB RAM
+Correctly reasoned through why trimming unused packages (streamlit, Flask, pandas) wouldn't help: those aren't imported by the app at runtime, so they add build weight but not runtime memory — the real cost is inherent to loading any local embedding model
+Decision: documented as a known, legitimate free-tier constraint rather than force a fix today. Real solutions (paid tier with more RAM, or swapping to a hosted embeddings API instead of a local model) are valid future upgrades, not required now
+
+Also discussed, not used today
+
+Docker — understood it wouldn't have solved this specific problem (memory usage is about what's installed/loaded, not how the environment is packaged) — scoped as a legitimate future topic, not relevant to today's blocker
