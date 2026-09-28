@@ -153,7 +153,7 @@ tools = [
         "type": "function",
         "function": {
             "name": "create_jira_issue",
-            "description": "Create a real issue/ticket in a Jira project. Use this tool only when the user explicitly asks to create a Jira ticket, task, or issue. This action is real and creates an actual tracked item, so only use it when the user's intent is clear. The project key for this user's project is 'KAN' unless they specify a different one.",
+            "description": "Create a real issue/ticket in a Jira project. Use this tool only when the user explicitly asks to create a Jira ticket, task, or issue. This action is real and creates an actual tracked item, so only use it when the user's intent is clear. The project key for this user's project is 'KAN' unless they specify a different one. Arguments must be named exactly: project_key, summary (the ticket title), description.",
             "parameters": {
                 "type": "object",
                 "properties": {

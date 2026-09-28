@@ -32,19 +32,25 @@ def save_message(conversation_id, role, content):
     )
     conn.commit()
 
-def load_message(conversation_id):
+MAX_HISTORY_MESSAGES = 12
+
+def load_message(conversation_id, limit=MAX_HISTORY_MESSAGES):
     cursor.execute(
-        "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id",
-        (conversation_id,)
+        """
+        SELECT role, content FROM messages
+        WHERE conversation_id = ?
+          AND role != 'tool'
+          AND NOT (role = 'assistant' AND content LIKE '[requested tool:%')
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (conversation_id, limit),
     )
-    rows = cursor.fetchall()
-    result = []
-    for row in rows:
-        role = row[0]
-        content = row[1]
-        if role == "tool" or (role == "assistant" and content.startswith("[requested tool:")):
-            continue
-        result.append({"role": role, "content": content})
+    rows = cursor.fetchall()[::-1]  # back to oldest-first
+    result = [{"role": r[0], "content": r[1]} for r in rows]
+    # don't start the history with an assistant reply
+    while result and result[0]["role"] != "user":
+        result.pop(0)
     return result
 
 available_tool = {
@@ -74,11 +80,18 @@ def get_reply(conversation_id, text, messages):
             save_message(conversation_id, "assistant", fallback)
             return fallback
         
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=messages,
-            tools=tools
-        )
+        try:
+            response = client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=messages,
+                tools=tools
+            )
+        except Exception as e:
+            print(f"MODEL CALL ERROR: {type(e).__name__}: {e}")
+            fallback = "Sorry, I couldn't process that request. Please try rephrasing it."
+            messages.append({"role": "assistant", "content": fallback})
+            save_message(conversation_id, "assistant", fallback)
+            return fallback
         tool_calls = response.choices[0].message.tool_calls
         
         if tool_calls:

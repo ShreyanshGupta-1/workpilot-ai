@@ -48,5 +48,5 @@ def list_sources():
 
 @app.get("/history/{conversation_id}")
 def get_history(conversation_id: str):
-    history = load_message(conversation_id)
+    history = load_message(conversation_id, limit=1000)
     return {"conversation_id": conversation_id, "messages": history}
