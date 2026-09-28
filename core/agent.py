@@ -4,7 +4,7 @@ import truststore
 truststore.inject_into_ssl()
 from groq import Groq
 import json
-from tools.functions import get_current_time, add_numbers, word_count,web_search
+from tools.functions import get_current_time, add_numbers, word_count,web_search,send_email,create_event,create_github_issue,create_jira_issue
 from tools.schemas import tools
 import sqlite3
 from tools.rag import search_document
@@ -52,7 +52,11 @@ available_tool = {
     "add_numbers": add_numbers,
     "word_count": word_count,
     "web_search": web_search,
-    "search_document": search_document
+    "search_document": search_document,
+    "send_email": send_email,
+    "create_event": create_event,
+    "create_github_issue": create_github_issue,
+    "create_jira_issue": create_jira_issue
 }
 
 def get_reply(conversation_id, text, messages):
@@ -85,9 +89,10 @@ def get_reply(conversation_id, text, messages):
             # print(f"DEBUG: tool called = {tool_name}")
             try:
                 result = available_tool[tool_name](**tool_args)
-                # print(f"DEBUG: tool result = {result}")
-            except Exception as e:
+            except KeyError:
                 result = f"Error: the tool '{tool_name}' does not exist. Do not attempt to call it again — inform the user this action is not available."
+            except Exception as e:
+                result = f"Error: the tool '{tool_name}' failed: {e}. Do not retry — tell the user what went wrong."
             
             messages.append({
                 "role": "assistant",
