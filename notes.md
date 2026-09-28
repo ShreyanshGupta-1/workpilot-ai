@@ -711,3 +711,42 @@ Both verified as genuinely visible on the real Jira board, not just trusted from
 
 Outcome
 All four tools from Day 1's original vision — email, calendar, GitHub, Jira — are now real, working, tested integrations. This closes out the "core tool list" phase of WorkPilot's roadmap; the agent can now genuinely act across a real inbox, calendar, code repository, and project tracker through natural conversation.
+
+## Day 30 build log
+
+**Goal:** make Days 26-29's tools safe to deploy, and check how they behave live.
+
+**Findings on Render**
+- The Day 26-29 work had never been pushed. Git log showed the live app was still at Day 25.
+- Pushing the old code as-is would have crashed the app on startup. The Gmail, Calendar, GitHub and Jira clients were created at import time, and none of those credentials exist on Render.
+
+**Fix 1: lazy service clients**
+- Every client is now built on first use, and Gmail and Calendar share one Google login helper.
+- A missing credential disables only that tool, with a readable error.
+- A missing `token.json` on a server no longer tries to open a browser.
+
+**Bug 2: raw 500 on a Jira request**
+- Groq's log showed the model called `create_jira_issue` with `title` instead of `summary`. Groq rejected it before my code ran.
+- My test message ("titled ...") probably caused it, and GitHub's tool uses `title`.
+- The model call had no error handling, so FastAPI returned a 500.
+- Fixed by wrapping the model call in a `try/except`, and by spelling out the argument names in the Jira schema.
+
+**Bug 3: Groq 413 on every local request**
+- `main.py` reloaded the whole `terminal_session` history. Together with nine tool schemas, that reached 8,043 tokens against Groq's 8,000 limit.
+- My first fix hid the error behind a friendly message. Adding a `print` of the exception revealed the cause.
+- Fixed by loading only the last 12 real messages, with the database still storing everything. `/history` uses `limit=1000` to stay complete.
+
+**Other fixes**
+- The old `requests==2.32.5` pin in `requirements.txt` conflicted with the Google libraries, so I removed it.
+- Five new packages were added to `requirements.txt`. The earlier hand-trimmed file was missing them.
+- A temporary DNS failure caused a startup crash locally, which showed the app depends on Gemini at startup.
+
+**Decision:** GitHub and Jira credentials are not on Render. The endpoint has no authentication, so anyone with the URL could otherwise create issues in my repos.
+
+**Live verification:** math works, and the Jira request returns a clean "credentials aren't set" message instead of a 500.
+
+**Lesson:** an error handler that hides the exception makes debugging harder. Logging the error is the first thing to add.
+
+**Outcome:** the live app runs the new code safely, with the action tools failing cleanly.
+
+Tell me when the README push is done. If you want to go further before Day 31, adding an API key check to `/chat` would let you turn the tools on live.
