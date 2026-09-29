@@ -750,3 +750,39 @@ All four tools from Day 1's original vision â€” email, calendar, GitHub, Jira â€
 **Outcome:** the live app runs the new code safely, with the action tools failing cleanly.
 
 Tell me when the README push is done. If you want to go further before Day 31, adding an API key check to `/chat` would let you turn the tools on live.
+
+
+## Day 31 build log
+
+Goal: stop irreversible tools (email, calendar, GitHub, Jira) from running without explicit user approval.
+
+Design
+
+The code holds the request and shows a summary. The model isn't involved in confirming.
+The pending request is stored in SQLite, not memory, because /chat rebuilds state on every call.
+Only exact confirm words count. A pending request expires after 10 minutes and is deleted before it runs, so one yes can't fire twice.
+Arguments are checked against the tool's signature before asking, so a malformed model call doesn't reach the user.
+
+Bugs found while testing
+
+A cancelled request came back to life. After no, a bare yes made the model rebuild the cancelled email, and a second yes sent it. My first fix (a system note in history) failed.
+Real fix: a bare yes or no with nothing pending gets a fixed reply from code, and the model is never called.
+Old confirmation and completion messages are also filtered out of the loaded history.
+The model asked for confirmation in text instead of calling the tool, leaving nothing pending, so a yes went nowhere. Fixed with a system-prompt rule and a code backstop for that phrasing.
+The model acted on an old request. It showed a Jira summary for a previous session's ticket. Fixed with a fresh conversation_id for the terminal session and a prompt line to act only on the latest message. Since I changed both at once, I can't say which one mattered.
+
+Live results: an action request shows a summary, and yes returns a clear "credentials not set" message with no 500.
+
+Lessons
+
+A prompt-level fix isn't a guarantee. The fix that worked took the model out of the decision.
+I made a few mistakes myself: I made a syntax error in my own patch, and my first fix for the stray yes didn't work. Testing caught each one.
+The summary is the real safeguard. Reading it before typing yes matters most.
+
+Known gaps: the gate isn't authentication (/chat is still open), and the model can still misread a long conversation's history.
+
+README addition
+
+Add this to the Features list:
+
+- Confirmation gate: email, calendar, GitHub and Jira actions are never executed on the model's say-so. The agent shows the exact details and waits for an explicit "yes" first, so a wrong guess can't send a real email or create a real ticket.
