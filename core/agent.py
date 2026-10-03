@@ -9,6 +9,7 @@ import json
 from tools.functions import (
     get_current_time, add_numbers, word_count, web_search,
     send_email, create_event, create_github_issue, create_jira_issue,
+    list_calendar_events, list_jira_issues, list_github_issues, check_inbox,
 )
 from tools.schemas import tools
 import sqlite3
@@ -82,6 +83,10 @@ available_tool = {
     "create_event": create_event,
     "create_github_issue": create_github_issue,
     "create_jira_issue": create_jira_issue,
+    "list_calendar_events": list_calendar_events,
+    "list_jira_issues": list_jira_issues,
+    "list_github_issues": list_github_issues,
+    "check_inbox": check_inbox,
 }
 
 

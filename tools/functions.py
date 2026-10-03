@@ -15,6 +15,7 @@ from jira import JIRA
 load_dotenv()
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.send',
+          'https://www.googleapis.com/auth/gmail.readonly',
           'https://www.googleapis.com/auth/calendar.events']
 
 
@@ -151,3 +152,59 @@ def create_jira_issue(project_key, summary, description):
     }
     new_issue = jira.create_issue(fields=issue_dict)
     return f"Jira issue created: {new_issue.key} - {jira.server_url}/browse/{new_issue.key}"
+
+def list_calendar_events(days_ahead=7):
+    now = datetime.datetime.utcnow().isoformat() + 'Z'
+    later = (datetime.datetime.utcnow() + datetime.timedelta(days=days_ahead)).isoformat() + 'Z'
+    events_result = _calendar().events().list(
+        calendarId='primary',
+        timeMin=now,
+        timeMax=later,
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
+    events = events_result.get('items', [])
+    if not events:
+        return f"No events found in the next {days_ahead} day(s)."
+    lines = []
+    for event in events:
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        lines.append(f"- {event.get('summary', '(no title)')} at {start}")
+    return "\n".join(lines)
+
+
+def list_jira_issues(project_key):
+    jira = _jira()
+    issues = jira.search_issues(f'project={project_key} AND resolution=Unresolved', maxResults=20)
+    if not issues:
+        return f"No open issues found in project {project_key}."
+    lines = [f"- {issue.key}: {issue.fields.summary}" for issue in issues]
+    return "\n".join(lines)
+
+
+def list_github_issues(repo_name):
+    repo = _github().get_repo(repo_name)
+    issues = repo.get_issues(state='open')
+    lines = []
+    for issue in issues[:20]:
+        lines.append(f"- #{issue.number}: {issue.title}")
+    if not lines:
+        return f"No open issues found in {repo_name}."
+    return "\n".join(lines)
+
+
+def check_inbox(max_results=5):
+    service = _gmail()
+    results = service.users().messages().list(userId='me', maxResults=max_results, labelIds=['INBOX']).execute()
+    message_ids = results.get('messages', [])
+    if not message_ids:
+        return "Inbox is empty or no recent messages found."
+    lines = []
+    for m in message_ids:
+        msg = service.users().messages().get(
+            userId='me', id=m['id'], format='metadata',
+            metadataHeaders=['From', 'Subject', 'Date']
+        ).execute()
+        headers = {h['name']: h['value'] for h in msg['payload']['headers']}
+        lines.append(f"- From: {headers.get('From', '?')} | Subject: {headers.get('Subject', '(no subject)')} | Date: {headers.get('Date', '?')}")
+    return "\n".join(lines)

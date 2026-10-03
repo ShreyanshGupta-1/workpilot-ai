@@ -173,5 +173,73 @@ tools = [
                 "required": ["project_key", "summary", "description"]
             }
         }
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_calendar_events",
+            "description": "List the user's upcoming Google Calendar events. Use this when the user asks what's on their calendar, what meetings they have, or similar. This only reads data, it does not change anything.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_ahead": {
+                        "type": "integer",
+                        "description": "How many days ahead to look, starting from now. Defaults to 7 if not specified."
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_jira_issues",
+            "description": "List open (unresolved) issues in a Jira project. Use this when the user asks what Jira tickets are open, what's in the backlog, or similar. This only reads data, it does not change anything. The project key for this user's project is 'KAN' unless they specify a different one.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_key": {
+                        "type": "string",
+                        "description": "The Jira project key, e.g. 'KAN'. Use 'KAN' by default unless the user names a different project key."
+                    }
+                },
+                "required": ["project_key"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_github_issues",
+            "description": "List open issues in a GitHub repository. Use this when the user asks what issues are open on a repo, or similar. This only reads data, it does not change anything.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo_name": {
+                        "type": "string",
+                        "description": "The full repository name in 'owner/repo' format, e.g. 'ShreyanshGupta-1/workpilot-ai'. Always include the owner/username — never just the repo name alone."
+                    }
+                },
+                "required": ["repo_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_inbox",
+            "description": "List recent email subjects, senders, and dates from the user's inbox. This does NOT return email body content, only the headers. Use this when the user asks what's in their inbox, if they got an email from someone, or similar. This only reads data, it does not change anything.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "max_results": {
+                        "type": "integer",
+                        "description": "How many recent emails to check. Defaults to 5 if not specified."
+                    }
+                },
+                "required": []
+            }
+        }
+    },
 ]

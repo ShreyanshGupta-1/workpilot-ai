@@ -786,3 +786,19 @@ README addition
 Add this to the Features list:
 
 - Confirmation gate: email, calendar, GitHub and Jira actions are never executed on the model's say-so. The agent shows the exact details and waits for an explicit "yes" first, so a wrong guess can't send a real email or create a real ticket.
+
+
+## Day 32 build log
+
+Goal: require a key on /chat and /history, so the agent's actions and conversation histories aren't open to anyone with the URL.
+
+What was built
+
+One dependency function, require_api_key, checks an X-API-Key header against WORKPILOT_API_KEY from the environment.
+Applied to /chat and /history/{conversation_id} only. / and /sources expose nothing sensitive and stay open.
+Uses secrets.compare_digest instead of ==, so a mismatch can't be detected by timing.
+Fails closed: if the server has no key configured, every request is rejected rather than let through.
+
+Testing: four checks (no key, wrong key, right key, unprotected route), run first locally, then repeated against the live app after adding WORKPILOT_API_KEY to Render. All seven passed on the first attempt, no bugs found.
+
+Result: the confirmation gate from Day 31 and the tools from Days 26-29 can now be safely enabled on the live demo, since a stranger with the URL can no longer trigger them.
